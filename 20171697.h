@@ -138,13 +138,15 @@ typedef struct object_program{
 typedef struct estab_node{
 	char name[7];
 	unsigned int address;
+	struct estab_node *next;
 }estab_node;
 
 // Structure for Loading
 typedef struct Object_File_Info{
 	FILE* filepoint;
-	int length;
+	unsigned int length;
 	estab_node* symlist;
+	estab_node* tail;
 }Object_File_Info;
 
 // Structure for Break Pont
@@ -229,3 +231,4 @@ void erase_symtab();
 void end_program();
 
 //-------------------------------  LOAD  -------------------------------------
+int Read_File( File *fp, char str[], int length );
