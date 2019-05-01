@@ -232,3 +232,6 @@ void end_program();
 
 //-------------------------------  LOAD  -------------------------------------
 int Read_File( File *fp, char str[], int length );
+int push_into_ESTAB( estab_node* new_node );
+unsigned int find_in_ESTAB( char str[] );
+void erase_ESTAB();
