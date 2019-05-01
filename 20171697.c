@@ -82,7 +82,7 @@ void Init(){
 	command_list[12][1] = "\0";
 	command_list[13][0] = "progaddr";
 	command_list[13][1] = "\0";
-	command_list[14][0] = "load";
+	command_list[14][0] = "loader";
 	command_list[14][1] = "\0";
 	command_list[15][0] = "run";
 	command_list[15][1] = "\0";

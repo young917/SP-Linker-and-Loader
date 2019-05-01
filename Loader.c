@@ -27,7 +27,7 @@ void set_progaddr(){
 }
 
 void load(){
-	Object_file_info linking_files[3];
+	Object_File_Info linking_files[3];
 	FILE* curfp;
 	unsigned int CSADDR;
 	int linking_num;
@@ -36,7 +36,7 @@ void load(){
 	char tmp[10];
 	char ch;
 	estab_node *new_node, *cur;
-	unsigned addr, len, val;
+	unsigned addr, len, val, num;
 	int ret, i, j;
 
 	// set File pointer
@@ -51,7 +51,7 @@ void load(){
 			printf("Too many argument.\n");
 			Success = FALSE;
 		}
-		linking_files.filepoint = fopen( filename , "r" );
+		linking_files[i].filepoint = fopen( filename , "r" );
 		linking_num++;
 		if( ret == ENTER )
 			break;
@@ -59,7 +59,7 @@ void load(){
 	if( Success == FALSE || linking_num == 0 ){
 		Success = FALSE;
 		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files.filepoint );
+			fclose( linking_files[i].filepoint );
 		return;
 	}
 
@@ -67,7 +67,7 @@ void load(){
 	// Pass1
 	for( i = 0 ; i < linking_num ; i++ ){
 		curfp = linking_files[i].filepoint;
-		ch = fscanf( curfp, "%c", &ch );
+		fscanf( curfp, "%c", &ch );
 		if( ch != 'H' ){
 			printf("H record doesn't exist.\n");
 			Success = FALSE;
@@ -75,13 +75,13 @@ void load(){
 		}
 		// Read H record
 		new_node = (estab_node *)malloc( sizeof( estab_node ));
-		Read_File( curfp, new_node.name, 6 );
+		Read_File( curfp, new_node->name, 6 );
 		Read_File( curfp, garage, 6 );
 		Read_File( curfp, tmp, 7 );
 		Str_convert_into_Hex( tmp, &len );
 		linking_files[i].length = len;
-		new_node.address = CSADDR;
-		new_node.next = NULL;
+		new_node->address = CSADDR;
+		new_node->next = NULL;
 		Success = push_into_ESTAB( new_node );
 		linking_files[i].symlist = linking_files[i].tail = new_node;
 		if( Success == FALSE )
@@ -94,13 +94,13 @@ void load(){
 			printf("D record doesn't exist.\n");
 			Success = FALSE;
 			for( i = 0; i< linking_num ; i++ )
-				fclose( linking_files.filepoint );
+				fclose( linking_files[i].filepoint );
 			return;
 		}
 
 		while( FALSE ){
 			new_node = ( estab_node *)malloc( sizeof( estab_node ));
-			ret = Read_File( curfp, new_node.name, 6 );
+			ret = Read_File( curfp, new_node->name, 6 );
 			if( ret == ENTER ){
 				printf("Error in D record.\n");
 				Success = FALSE;
@@ -109,8 +109,8 @@ void load(){
 			ret = Read_File( curfp, tmp, 6 );
 			Str_convert_into_Hex( tmp, &addr );
 			addr += CSADDR;
-			new_node.address = addr;
-			new_node.next = NULL;
+			new_node->address = addr;
+			new_node->next = NULL;
 			Success = push_into_ESTAB( new_node );
 			if( Success == FALSE )
 				break;
@@ -126,7 +126,7 @@ void load(){
 	if( Success == FALSE ){
 		erase_ESTAB();
 		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files.filepoint );
+			fclose( linking_files[i].filepoint );
 		return;
 	}
 
@@ -148,8 +148,8 @@ void load(){
 				Str_convert_into_Hex( tmp, &len );
 				for( j = 0; j < len; j++, addr++ ){
 					ret = Read_File( curfp, tmp, 2 );
-					Str_convret_into_Hex( tmp, &num );
-					Memory[addr] = num;
+					Str_convert_into_Hex( tmp, &val );
+					Memory[addr] = val;
 					if( ret == ENTER && j != (len - 1) ){
 						printf("Error in T record.\n");
 						Success == FALSE;
@@ -201,7 +201,7 @@ void load(){
 	if( Success == FALSE ){
 		erase_ESTAB();
 		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files.filepoint );
+			fclose( linking_files[i].filepoint );
 		return;
 	}	
 
@@ -210,18 +210,18 @@ void load(){
 	printf("section\t\tname\n");
 	printf("----------------------------------------------------------");
 	len = 0;
-	for( i = 0; i < listing_num ; i++ ){
-		cur = listing_files.symlist;
-		printf("%s\t\t      \t\t", cur.name);
-		Hex_convert_into_Str( cur.address, 4 );
+	for( i = 0; i < linking_num ; i++ ){
+		cur = linking_files[i].symlist;
+		printf("%s\t\t      \t\t", cur->name);
+		Hex_convert_into_Str( cur->address, 4 );
 		printf("\t\t");
-		Hex_convert_into_Str( listing.files.length );
-		len += listing.files.length;
+		Hex_convert_into_Str( linking_files[i].length , 4);
+		len += linking_files[i].length;
 
 		cur = cur->next;
 		while ( cur != NULL ){
-			printf("       \t\t%s\t\t", cur.name);
-			Hex_convert_into_Str( cur.address, 4 );
+			printf("       \t\t%s\t\t", cur->name);
+			Hex_convert_into_Str( cur->address, 4 );
 			printf("\n");
 			cur = cur->next;
 		}
@@ -232,7 +232,7 @@ void load(){
 
 	// File close
 	for( i = 0; i< linking_num ; i++ )
-		fclose( linking_files.filepoint );
+		fclose( linking_files[i].filepoint );
 
 	erase_ESTAB();
 }
@@ -241,14 +241,27 @@ void load(){
 int push_into_ESTAB( estab_node* new_node ){
 	// return FALSE if overlap occurs
 	int hash_key;
+	int ret = TRUE;
 	estab_node *cur;
 
-	hash_key = Hash_func( new_node.name, ESTAB_SIZE );
+	hash_key = Hash_func( new_node->name, ESTAB_SIZE );
 	cur = ESTAB[hash_key];
+	if( cur == NULL ){
+		ESTAB[hash_key] = new_node;
+		return ret;
+	}
 	while( cur->next != NULL ){
+		if( strcmp( new_node->name, cur->name ) == 0 ){
+			ret = FALSE;
+			break;
+		}
 		cur = cur->next;
 	}
+	if( ret == FALSE )
+		return ret;
+
 	cur->next = new_node;
+	return ret;
 }
 
 unsigned int find_in_ESTAB( char str[] ){
@@ -259,8 +272,8 @@ unsigned int find_in_ESTAB( char str[] ){
 	hash_key = Hash_func( str, ESTAB_SIZE );
 	cur = ESTAB[hash_key];
 	while( cur != NULL ){
-		if( strcmp( str, cur.name ) == 0 ){
-			ret = cur.address;
+		if( strcmp( str, cur->name ) == 0 ){
+			ret = cur->address;
 			break;
 		}
 	}
@@ -268,6 +281,8 @@ unsigned int find_in_ESTAB( char str[] ){
 }
 
 void erase_ESTAB(){
+	int i;
+
 	for( i = 0; i < ESTAB_SIZE ; i++ ){
 		free( ESTAB[i] );
 		ESTAB[i] = NULL;
