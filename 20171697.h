@@ -138,6 +138,7 @@ typedef struct object_program{
 typedef struct estab_node{
 	char name[7];
 	unsigned int address;
+	int prognum;
 	struct estab_node *next;
 }estab_node;
 
@@ -145,9 +146,6 @@ typedef struct estab_node{
 typedef struct Object_File_Info{
 	char filename[20];
 	unsigned int length;
-	estab_node* header;
-	estab_node* symlist;
-	estab_node* tail;
 }Object_File_Info;
 
 // Structure for Break Pont
@@ -233,6 +231,7 @@ void end_program();
 
 //-------------------------------  LOAD  -------------------------------------
 int Read_File( FILE *fp, char str[], int length );
+void find_remain( unsigned int *val, unsigned int len );
 int push_into_ESTAB( estab_node* new_node );
 unsigned int find_in_ESTAB( char str[] );
 void erase_ESTAB();

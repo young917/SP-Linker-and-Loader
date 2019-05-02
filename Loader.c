@@ -8,18 +8,15 @@ void set_progaddr(){
 	addr[0] = '\0';
 	PROGADDR =  0;
 	ret = Get_String_Argument(addr);
-	Success = TRUE;
-	if( ret != ENTER ){
+	if( Success == FALSE || ret != ENTER ){
 		Success = FALSE;
 		printf("Please enter proper argument\n");
 		return;
 	}
-	if( addr[0] != '\0' ){
-		ret = Str_convert_into_Hex(addr, &PROGADDR );
-		if( ret == FALSE ){
-			printf( "Please enter proper argument\n");
-			return;
-		}
+	ret = Str_convert_into_Hex(addr, &PROGADDR );
+	if( ret == FALSE ){
+		printf( "Please enter proper argument\n");
+		return;
 	}
 	printf("Program starting address set to 0x");
 	Hex_convert_into_Str( PROGADDR, 4);
@@ -31,22 +28,20 @@ void load(){
 	FILE* curfp;
 	unsigned int CSADDR;
 	unsigned int Reference_Table[14];
-	int linking_num;
+	int linking_num = 0;
 	char filename[MAX_COMMAND];
 	char garage[73];
 	char tmp[10];
 	char ch;
-	estab_node *new_node, *cur;
-	unsigned addr, len, val, num;
+	estab_node *new_node, *cur, *after, *ext_cur, *ext_before;
+	estab_node * extdef[3];
+	unsigned addr, len, val, num, idx;
 	int ret, i, j;
 
 	// set File pointer
 	for( i = 0; i < 3 ; i++){
 		linking_files[i].filename[0] = '\0';
-		linking_files[i].header = NULL;
-		linking_files[i].symlist = NULL;
-		linking_files[i].tail = NULL;
-
+	
 		// read arguments
 		ret = Get_String_Argument( filename );
 		if( i == 2 && ret != ENTER ){
@@ -79,8 +74,8 @@ void load(){
 				linking_files[i].length = len;
 				new_node->address = CSADDR;
 				new_node->next = NULL;
+				new_node->prognum = i;
 				Success = push_into_ESTAB( new_node );
-				linking_files[i].header = new_node;
 			}
 
 			else if( ch == 'D' ){
@@ -88,28 +83,17 @@ void load(){
 					new_node = ( estab_node *)malloc( sizeof( estab_node ));
 					ret = Read_File( curfp, new_node->name, 6 );
 					if( ret == ENTER ){
-						printf("Error in D record.\n");
-						Success = FALSE;
+						free( new_node );
+						new_node = NULL;
 						break;
 					}
 					ret = Read_File( curfp, tmp, 6 );
-					Str_convert_into_Hex( tmp, &addr );
+					Str_convert_into_Hex( tmp, &addr ); 
 					addr += CSADDR;
 					new_node->address = addr;
 					new_node->next = NULL;
+					new_node->prognum = i;
 					Success = push_into_ESTAB( new_node );
-					if( Success == FALSE )
-						break;
-					if( linking_files[i].symlist == NULL ){
-						linking_files[i].symlist = new_node;
-						linking_files[i].tail = new_node;
-					}
-					else{
-						linking_files[i].tail->next = new_node;
-						linking_files[i].tail = new_node;
-					}
-					if( ret == ENTER )
-						break;
 				}	
 			}
 
@@ -139,18 +123,33 @@ void load(){
 	for( i = 0 ; i < linking_num && Success == TRUE ; i++ ){
 		curfp = fopen( linking_files[i].filename, "r" );
 		while( Success ){
-			fscanf(curfp, "%c", &ch);
+			ret = fscanf(curfp, "%c", &ch);
+			
+			if( ret == EOF )
+				break;
 
-			if( ch == 'R' ){
+			else if( ch == 'R' ){
 				// make reference table
 				Reference_Table[1] = CSADDR;
+
 				while( TRUE ) {
-					ret = Read_File( curfp, tmp, 2 );
-					Str_convert_into_Hex( tmp, &num );
-					ret = Read_File( curfp, tmp, 6 );
-					addr = find_in_ESTAB( tmp );
-					Reference_Table[num] = addr;
-					if( ret == Eof )
+					fscanf(curfp, "%c", &ch);
+					if( ch == '\n' )
+						break;
+					else if( ch >= '0' || ch <= '9' ){
+						tmp[0] = ch;
+						fscanf(curfp, "%c", tmp+1 );
+						tmp[2] = '\0';
+						Str_convert_into_Hex( tmp, &num );
+						ret = Read_File( curfp, tmp, 6 );
+						addr = find_in_ESTAB( tmp );
+						Reference_Table[num] = addr;
+					}
+					else{
+						ret = Read_File( curfp, garage, 6 ); 
+					}
+
+					if( ret == ENTER )
 						break;
 				}
 			}
@@ -165,11 +164,6 @@ void load(){
 					ret = Read_File( curfp, tmp, 2 );
 					Str_convert_into_Hex( tmp, &val );
 					Memory[addr] = val;
-					if( ret != CHAR && j != (len - 1) ){
-						printf("Error in T record.\n");
-						Success = FALSE;
-						break;
-					}
 				}
 				ret = Read_File( curfp, tmp, 1 );
 			}
@@ -180,39 +174,60 @@ void load(){
 				addr += CSADDR;
 				Read_File( curfp, tmp, 2 );
 				Str_convert_into_Hex( tmp, &len );
-				len = ( len + 1 ) / 2;
 				
 				num = 0;
-				for( j = 0 ; j < len ; j++ ){
-					num *= 16*16;
+				j = 0;
+				if( ( len%2 ) == 1 ){
+					num = Memory[addr] % 16;
+					Memory[addr] = Memory[addr] - num;
+					num *= 16;
+					j++;
+				}
+				
+				for( ; j < (len+1)/2 ; j++ ){
 					num += Memory[ addr + j ];
+					if( j == ( (len+1)/2 -1 ) )
+						break;
+					num *= 16*16;
 				}
 				fscanf( curfp,"%c", &ch);
 				if( ch == '\n' ){
 					num += Reference_Table[1];
-					num %= 0x1000000;
 				}
 				else{
-					Read_File( curfp, tmp, 2 );
-					Str_convert_into_Hex( tmp, &num );
-					val = Reference_Table[num];
+					Read_File( curfp, tmp, 7 );
+					if( tmp[0] >= '0' && tmp[0] <= '9' ){
+						Str_convert_into_Hex( tmp, &idx );
+						val = Reference_Table[idx];
+					}
+					else{
+						val = find_in_ESTAB( tmp );
+					}
 
 					if( ch == '+' ){
 						num += val;
-						num %= 0x1000000;
 					}
 					else if( ch == '-' ){
 						val = val ^ 0xFFFFFF;
 						val += 1;
 						num += val;
-						num %= 0x1000000;
 					}
-					Read_File( curfp, garage, 1 );
 				}
-				for( j = len - 1 ; j >= 0 ; j-- ){
+
+				find_remain( &num, len );
+
+				for( j = (len+1)/2 - 1 ; j > 0 ; j-- ){
 					val = num %  0x100;
 					num /= 0x100;
 					Memory[ addr + j ] = val;
+				}
+				if( len % 2 == 1 ){
+					val = num % 0x10;
+					Memory[ addr ] += val;
+				}
+				else{
+					val = num % 0x100;
+					Memory[ addr ] = val;
 				}
 			}
 
@@ -220,8 +235,7 @@ void load(){
 				break;
 
 			else{
-				printf("Error exists.\n");
-				Success = FALSE;
+				Read_File( curfp, garage, 72 );
 			}
 		}
 		fclose( curfp );
@@ -232,20 +246,51 @@ void load(){
 		return;
 	}	
 
+
+	for( i = 0; i < linking_num ; i++ )
+		extdef[i] = NULL;
+	for( i = 0; i < ESTAB_SIZE ; i++ ){
+		after = ESTAB[i];
+		while( after != NULL ){
+			cur = after;
+			after = cur->next;
+			num = cur->prognum;
+			cur->next = NULL;
+
+			ext_before = NULL;
+			ext_cur = extdef[num];
+			while( ext_cur != NULL ){
+				if( ext_cur->address > cur->address )
+					break;
+				ext_before = ext_cur;
+				ext_cur = ext_cur->next;
+			}
+			if( ext_before == NULL )
+				extdef[num] = cur;
+			else{
+				ext_before->next = cur;
+				cur->next = ext_cur;
+			}
+		}
+	}
+
+
 	// Print Load Map
+	printf("\n");
 	printf("control\t\tsymbol\t\taddress\t\tlength\n");
 	printf("section\t\tname\n");
-	printf("----------------------------------------------------------");
+	printf("----------------------------------------------------------\n");
 	len = 0;
 	for( i = 0; i < linking_num ; i++ ){
-		cur = linking_files[i].header;
+		cur = extdef[i];
 		printf("%s\t\t      \t\t", cur->name);
 		Hex_convert_into_Str( cur->address, 4 );
 		printf("\t\t");
 		Hex_convert_into_Str( linking_files[i].length , 4);
+		printf("\n");
 		len += linking_files[i].length;
 
-		cur = linking_files[i].symlist;
+		cur = cur->next;
 		while ( cur != NULL ){
 			printf("       \t\t%s\t\t", cur->name);
 			Hex_convert_into_Str( cur->address, 4 );
@@ -253,14 +298,35 @@ void load(){
 			cur = cur->next;
 		}
 	}
+	printf("----------------------------------------------------------\n");
 	printf("       \t\t      \t\ttotal length\t");
 	Hex_convert_into_Str( len, 4 );
 	printf("\n");
 
-	// File close
-	erase_ESTAB();
+	//Erase extdef array, ESTAB
+	for( i = 0; i < linking_num ; i++ ){
+		ext_cur = extdef[i];
+		while( ext_cur  != NULL ){
+			ext_before = ext_cur;
+			ext_cur = ext_cur->next;
+			free( ext_before );
+			ext_before = NULL;
+		}
+	}
+	for( i = 0 ; i < ESTAB_SIZE ; i++ )
+		ESTAB[i] = NULL;
 }
 
+void find_remain( unsigned int *val, unsigned int len ){
+
+	unsigned int divisor = 1;
+	unsigned int i;
+
+	for( i = 0; i< len ; i++ ){
+		divisor = divisor<<4;
+	}
+	*val = (*val)%divisor;
+}
 // -------------------------   Deal with ESTAB --------------------------------
 int push_into_ESTAB( estab_node* new_node ){
 	// return FALSE if overlap occurs
@@ -306,9 +372,16 @@ unsigned int find_in_ESTAB( char str[] ){
 
 void erase_ESTAB(){
 	int i;
+	estab_node *before, *cur;
 
 	for( i = 0; i < ESTAB_SIZE ; i++ ){
-		free( ESTAB[i] );
+		cur = ESTAB[i];
+		while( cur != NULL ){
+			before = cur;
+			cur = cur->next;
+			free( before );
+			before = NULL;
+		}
 		ESTAB[i] = NULL;
 	}
 }
