@@ -61,7 +61,7 @@ enum MODE{
 	Store_input, Erase_space
 };
 enum CHARTYPE{
-	ENTER = 1, COMMA, CHAR, BLANK
+	ENTER = 1, COMMA, CHAR, BLANK, Eof
 };
 enum DIRECTIVE{
 	START=1, END, BYTE, WORD, RESB, RESW, BASE, NOBASE
@@ -143,8 +143,9 @@ typedef struct estab_node{
 
 // Structure for Loading
 typedef struct Object_File_Info{
-	FILE* filepoint;
+	char filename[20];
 	unsigned int length;
+	estab_node* header;
 	estab_node* symlist;
 	estab_node* tail;
 }Object_File_Info;

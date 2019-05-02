@@ -30,6 +30,7 @@ void load(){
 	Object_File_Info linking_files[3];
 	FILE* curfp;
 	unsigned int CSADDR;
+	unsigned int Reference_Table[14];
 	int linking_num;
 	char filename[MAX_COMMAND];
 	char garage[73];
@@ -41,7 +42,8 @@ void load(){
 
 	// set File pointer
 	for( i = 0; i < 3 ; i++){
-
+		linking_files[i].filename[0] = '\0';
+		linking_files[i].header = NULL;
 		linking_files[i].symlist = NULL;
 		linking_files[i].tail = NULL;
 
@@ -51,95 +53,108 @@ void load(){
 			printf("Too many argument.\n");
 			Success = FALSE;
 		}
-		linking_files[i].filepoint = fopen( filename , "r" );
+		strcpy ( linking_files[i].filename, filename );
 		linking_num++;
 		if( ret == ENTER )
 			break;
 	}
 	if( Success == FALSE || linking_num == 0 ){
 		Success = FALSE;
-		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files[i].filepoint );
 		return;
 	}
 
 	CSADDR = PROGADDR;
 	// Pass1
 	for( i = 0 ; i < linking_num ; i++ ){
-		curfp = linking_files[i].filepoint;
-		fscanf( curfp, "%c", &ch );
-		if( ch != 'H' ){
-			printf("H record doesn't exist.\n");
-			Success = FALSE;
-			break;
-		}
-		// Read H record
-		new_node = (estab_node *)malloc( sizeof( estab_node ));
-		Read_File( curfp, new_node->name, 6 );
-		Read_File( curfp, garage, 6 );
-		Read_File( curfp, tmp, 7 );
-		Str_convert_into_Hex( tmp, &len );
-		linking_files[i].length = len;
-		new_node->address = CSADDR;
-		new_node->next = NULL;
-		Success = push_into_ESTAB( new_node );
-		linking_files[i].symlist = linking_files[i].tail = new_node;
-		if( Success == FALSE )
-			break;
+		curfp = fopen( linking_files[i].filename, "r" );
+		while( Success ){
+			fscanf( curfp, "%c", &ch );
 
+			if( ch == 'H' ){
+				new_node = (estab_node *)malloc( sizeof( estab_node ));
+				Read_File( curfp, new_node->name, 6 );
+				Read_File( curfp, garage, 6 );
+				Read_File( curfp, tmp, 7 );
+				Str_convert_into_Hex( tmp, &len );
+				linking_files[i].length = len;
+				new_node->address = CSADDR;
+				new_node->next = NULL;
+				Success = push_into_ESTAB( new_node );
+				linking_files[i].header = new_node;
+			}
 
-		// Read D record
-		fscanf( curfp, "%c", &ch );
-		if( ch != 'D' ){
-			printf("D record doesn't exist.\n");
-			Success = FALSE;
-			for( i = 0; i< linking_num ; i++ )
-				fclose( linking_files[i].filepoint );
-			return;
-		}
+			else if( ch == 'D' ){
+				while( TRUE ){
+					new_node = ( estab_node *)malloc( sizeof( estab_node ));
+					ret = Read_File( curfp, new_node->name, 6 );
+					if( ret == ENTER ){
+						printf("Error in D record.\n");
+						Success = FALSE;
+						break;
+					}
+					ret = Read_File( curfp, tmp, 6 );
+					Str_convert_into_Hex( tmp, &addr );
+					addr += CSADDR;
+					new_node->address = addr;
+					new_node->next = NULL;
+					Success = push_into_ESTAB( new_node );
+					if( Success == FALSE )
+						break;
+					if( linking_files[i].symlist == NULL ){
+						linking_files[i].symlist = new_node;
+						linking_files[i].tail = new_node;
+					}
+					else{
+						linking_files[i].tail->next = new_node;
+						linking_files[i].tail = new_node;
+					}
+					if( ret == ENTER )
+						break;
+				}	
+			}
 
-		while( FALSE ){
-			new_node = ( estab_node *)malloc( sizeof( estab_node ));
-			ret = Read_File( curfp, new_node->name, 6 );
-			if( ret == ENTER ){
-				printf("Error in D record.\n");
-				Success = FALSE;
+			else if( ch == '.' ){
+				Read_File( curfp, garage, 72 );
+				continue;
+			}
+			
+			else{
+				Read_File( curfp, garage, 72 );
 				break;
 			}
-			ret = Read_File( curfp, tmp, 6 );
-			Str_convert_into_Hex( tmp, &addr );
-			addr += CSADDR;
-			new_node->address = addr;
-			new_node->next = NULL;
-			Success = push_into_ESTAB( new_node );
-			if( Success == FALSE )
-				break;
-			linking_files[i].tail->next = new_node;
-			linking_files[i].tail = new_node;
-			if( ret == ENTER )
-				break;
 		}
+		fclose( curfp );
 		if( Success == FALSE )
 			break;
+
 		CSADDR += linking_files[i].length;
 	}
 	if( Success == FALSE ){
 		erase_ESTAB();
-		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files[i].filepoint );
 		return;
 	}
 
 	// Pass2
 	CSADDR = PROGADDR;
 	for( i = 0 ; i < linking_num && Success == TRUE ; i++ ){
-		curfp = linking_files[i].filepoint;
-		
+		curfp = fopen( linking_files[i].filename, "r" );
 		while( Success ){
 			fscanf(curfp, "%c", &ch);
+
 			if( ch == 'R' ){
-				Read_File( curfp, garage, 73 );
+				// make reference table
+				Reference_Table[1] = CSADDR;
+				while( TRUE ) {
+					ret = Read_File( curfp, tmp, 2 );
+					Str_convert_into_Hex( tmp, &num );
+					ret = Read_File( curfp, tmp, 6 );
+					addr = find_in_ESTAB( tmp );
+					Reference_Table[num] = addr;
+					if( ret == Eof )
+						break;
+				}
 			}
+
 			else if( ch == 'T' ){
 				Read_File( curfp, tmp, 6 );
 				Str_convert_into_Hex( tmp, &addr );
@@ -150,14 +165,15 @@ void load(){
 					ret = Read_File( curfp, tmp, 2 );
 					Str_convert_into_Hex( tmp, &val );
 					Memory[addr] = val;
-					if( ret == ENTER && j != (len - 1) ){
+					if( ret != CHAR && j != (len - 1) ){
 						printf("Error in T record.\n");
-						Success == FALSE;
+						Success = FALSE;
 						break;
 					}
 				}
 				ret = Read_File( curfp, tmp, 1 );
 			}
+
 			else if( ch == 'M' ){
 				Read_File( curfp, tmp, 6 );
 				Str_convert_into_Hex( tmp, &addr );
@@ -172,17 +188,26 @@ void load(){
 					num += Memory[ addr + j ];
 				}
 				fscanf( curfp,"%c", &ch);
-				Read_File( curfp, tmp, 7 );
-				val = find_in_ESTAB( tmp );
-				if( ch == '+' ){
-					num += val;
+				if( ch == '\n' ){
+					num += Reference_Table[1];
 					num %= 0x1000000;
 				}
 				else{
-					val = val ^ 0xFFFFFF;
-					val += 1;
-					num += val;
-					num %= 0x1000000;
+					Read_File( curfp, tmp, 2 );
+					Str_convert_into_Hex( tmp, &num );
+					val = Reference_Table[num];
+
+					if( ch == '+' ){
+						num += val;
+						num %= 0x1000000;
+					}
+					else if( ch == '-' ){
+						val = val ^ 0xFFFFFF;
+						val += 1;
+						num += val;
+						num %= 0x1000000;
+					}
+					Read_File( curfp, garage, 1 );
 				}
 				for( j = len - 1 ; j >= 0 ; j-- ){
 					val = num %  0x100;
@@ -190,18 +215,20 @@ void load(){
 					Memory[ addr + j ] = val;
 				}
 			}
+
 			else if( ch == 'E' )
 				break;
+
 			else{
 				printf("Error exists.\n");
 				Success = FALSE;
 			}
 		}
+		fclose( curfp );
+		CSADDR += linking_files[i].length;
 	}
 	if( Success == FALSE ){
 		erase_ESTAB();
-		for( i = 0; i< linking_num ; i++ )
-			fclose( linking_files[i].filepoint );
 		return;
 	}	
 
@@ -211,14 +238,14 @@ void load(){
 	printf("----------------------------------------------------------");
 	len = 0;
 	for( i = 0; i < linking_num ; i++ ){
-		cur = linking_files[i].symlist;
+		cur = linking_files[i].header;
 		printf("%s\t\t      \t\t", cur->name);
 		Hex_convert_into_Str( cur->address, 4 );
 		printf("\t\t");
 		Hex_convert_into_Str( linking_files[i].length , 4);
 		len += linking_files[i].length;
 
-		cur = cur->next;
+		cur = linking_files[i].symlist;
 		while ( cur != NULL ){
 			printf("       \t\t%s\t\t", cur->name);
 			Hex_convert_into_Str( cur->address, 4 );
@@ -231,9 +258,6 @@ void load(){
 	printf("\n");
 
 	// File close
-	for( i = 0; i< linking_num ; i++ )
-		fclose( linking_files[i].filepoint );
-
 	erase_ESTAB();
 }
 
