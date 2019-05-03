@@ -54,6 +54,29 @@
 #define _ONE_REG_ONE_DEC 4
 #define _TWO_REG 5
 
+// Define opcode
+#define LDA 0x00
+#define LDB 0x68
+#define LDT 0x74
+#define LDCH 0x50
+#define STA 0x0C
+#define STX 0x10
+#define STL 0x14
+#define STCH 0x54
+#define J 0x3C
+#define JSUB 0x48
+#define JLT 0x38
+#define JEQ 0x30
+#define RSUB 0x4C
+#define COMP 0x28
+#define COMPR 0xA0
+#define CLEAR 0xB4
+#define TIXR 0xB8
+#define TD 0xE0
+#define RD 0xD8
+#define WD 0xDC
+
+
 enum Command{
 	Help, Dir, Quit, History, Dump, Edit, Fill, Reset, Opcode, Opcodelist, Assemble, Type, Symbol, Progaddr, Loader, Run, Bp, Clear, Etc
 };
@@ -70,8 +93,12 @@ enum Instruction{
 	Nothing = -1, Directive, Format1, Format2, Format3, Format4
 };
 enum ObjectFile{
-	H, T, E, M
+	H, Text, E, M
 };
+enum Registers{
+	A, X, L, B, S, T, F, NONE, PC, SW
+};
+// SW: less than -- 0, equal -- 1, more than -- 2
 
 //-----------------------------   STRUCTURE  ----------------------------------
 
@@ -148,6 +175,15 @@ typedef struct Object_File_Info{
 	unsigned int length;
 }Object_File_Info;
 
+// Structure for Execution
+typedef struct EXECUTION{
+	unsigned int registers[10];
+	unsigned int opcode;
+	unsigned int flag[6];
+	unsigned int target;
+}EXECUTION;
+	
+
 // Structure for Break Pont
 typedef struct BreakPoint{
 	unsigned int address;
@@ -155,8 +191,9 @@ typedef struct BreakPoint{
 }BreakPoint;
 
 typedef struct BP_List{
-	int num;
+	BreakPoint *current;
 	BreakPoint *list;
+	BreakPoint *tail;
 }BP_List;
 
 //--------------------------------  INITIALIZE  -------------------------------   
@@ -233,5 +270,12 @@ void end_program();
 int Read_File( FILE *fp, char str[], int length );
 void find_remain( unsigned int *val, unsigned int len );
 int push_into_ESTAB( estab_node* new_node );
-unsigned int find_in_ESTAB( char str[] );
+int find_in_ESTAB( unsigned int *addr, char str[] );
 void erase_ESTAB();
+
+//------------------------------- Execution ----------------------------------
+int running_until( unsigned int addr );
+void decode();
+void Load(int reg_idx, int len);
+void Store(int reg_idx, int len);
+void print_regs();

@@ -800,7 +800,7 @@ void Write_Obj( int flag, unsigned int addr, char object_code[]){
 					fprintf(fp, "H%s\n",object_code);
 					break;
 				}
-		case T:{
+		case Text:{
 				   len = strlen( object_code );
 				   column = OBJ.current_col;
 

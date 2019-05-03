@@ -62,6 +62,10 @@ void load(){
 	// Pass1
 	for( i = 0 ; i < linking_num ; i++ ){
 		curfp = fopen( linking_files[i].filename, "r" );
+		if( curfp == NULL ){
+			Success = FALSE;
+			break;
+		}
 		while( Success ){
 			fscanf( curfp, "%c", &ch );
 
@@ -118,6 +122,7 @@ void load(){
 		return;
 	}
 
+	mem_reset();
 	// Pass2
 	CSADDR = PROGADDR;
 	for( i = 0 ; i < linking_num && Success == TRUE ; i++ ){
@@ -142,14 +147,14 @@ void load(){
 						tmp[2] = '\0';
 						Str_convert_into_Hex( tmp, &num );
 						ret = Read_File( curfp, tmp, 6 );
-						addr = find_in_ESTAB( tmp );
+						Success = find_in_ESTAB( &addr, tmp );
 						Reference_Table[num] = addr;
 					}
 					else{
 						ret = Read_File( curfp, garage, 6 ); 
 					}
 
-					if( ret == ENTER )
+					if( ret == ENTER || Success == FALSE )
 						break;
 				}
 			}
@@ -192,16 +197,16 @@ void load(){
 				}
 				fscanf( curfp,"%c", &ch);
 				if( ch == '\n' ){
-					num += Reference_Table[1];
+					num += CSADDR;
 				}
 				else{
 					Read_File( curfp, tmp, 7 );
-					if( tmp[0] >= '0' && tmp[0] <= '9' ){
+					if( tmp[0] >= '0' && tmp[0] <= '9' ){// reference number
 						Str_convert_into_Hex( tmp, &idx );
 						val = Reference_Table[idx];
 					}
 					else{
-						val = find_in_ESTAB( tmp );
+						Success = find_in_ESTAB( &val, tmp );
 					}
 
 					if( ch == '+' ){
@@ -243,6 +248,7 @@ void load(){
 	}
 	if( Success == FALSE ){
 		erase_ESTAB();
+		mem_reset();
 		return;
 	}	
 
@@ -302,6 +308,7 @@ void load(){
 	printf("       \t\t      \t\ttotal length\t");
 	Hex_convert_into_Str( len, 4 );
 	printf("\n");
+	ENDADDR = PROGADDR + len;
 
 	//Erase extdef array, ESTAB
 	for( i = 0; i < linking_num ; i++ ){
@@ -354,20 +361,23 @@ int push_into_ESTAB( estab_node* new_node ){
 	return ret;
 }
 
-unsigned int find_in_ESTAB( char str[] ){
+int find_in_ESTAB( unsigned int *addr, char str[] ){
+	// return find or not
+
 	int hash_key;
-	unsigned int ret = 0;
+	int ret = FALSE;
 	estab_node *cur;
 
 	hash_key = Hash_func( str, ESTAB_SIZE );
 	cur = ESTAB[hash_key];
 	while( cur != NULL ){
 		if( strcmp( str, cur->name ) == 0 ){
-			ret = cur->address;
+			*addr = cur->address;
+			ret = TRUE;
 			break;
 		}
 	}
-	return ret;
+	return ret;	
 }
 
 void erase_ESTAB(){
@@ -384,10 +394,4 @@ void erase_ESTAB(){
 		}
 		ESTAB[i] = NULL;
 	}
-}
-
-void run(){
-
-}
-void set_bp(){
 }

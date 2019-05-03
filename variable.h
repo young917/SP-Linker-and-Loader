@@ -37,6 +37,11 @@ object_program OBJ;
 // For Loading
 estab_node* ESTAB[ESTAB_SIZE];
 unsigned int PROGADDR;
+unsigned int ENDADDR;
+
+// For Execution
+EXECUTION execution;
+
 
 // Break Point
 BP_List bp_list;

@@ -115,8 +115,9 @@ void Init(){
 	PROGADDR = 0;
 
 	//Initialize break points
-	bp_list.num = 0;
 	bp_list.list = NULL;
+	bp_list.current = NULL;
+	bp_list.tail = NULL;
 }
 
 //************ Relate to Hash Table *********************
