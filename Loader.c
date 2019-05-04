@@ -13,6 +13,8 @@ void set_progaddr(){
 		printf("\nPlease enter proper argument\n");
 		return;
 	}
+	if( strncmp(addr, "0x", 2) == 0 || strncmp(addr, "0X", 2) == 0 )
+		strcpy(addr, addr+2 );
 	ret = Str_convert_into_Hex(addr, &PROGADDR );// argument doesn't consist of hexadecimal string
 	if( ret == FALSE ){
 		printf( "\nPlease enter proper argument\n");
