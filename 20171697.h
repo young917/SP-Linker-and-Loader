@@ -191,9 +191,8 @@ typedef struct BreakPoint{
 }BreakPoint;
 
 typedef struct BP_List{
-	BreakPoint *current;
-	BreakPoint *list;
 	BreakPoint *tail;
+	BreakPoint *list;
 }BP_List;
 
 //--------------------------------  INITIALIZE  -------------------------------   
@@ -274,8 +273,11 @@ int find_in_ESTAB( unsigned int *addr, char str[] );
 void erase_ESTAB();
 
 //------------------------------- Execution ----------------------------------
-int running_until( unsigned int addr );
 void decode();
+BreakPoint * meet_breakpoint();
 void Load(int reg_idx, int len);
 void Store(int reg_idx, int len);
 void print_regs();
+void show_bplist();
+void delete_bplist();
+void push_into_bplist(unsigned int addr);

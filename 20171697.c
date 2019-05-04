@@ -116,7 +116,6 @@ void Init(){
 
 	//Initialize break points
 	bp_list.list = NULL;
-	bp_list.current = NULL;
 	bp_list.tail = NULL;
 }
 
@@ -735,4 +734,5 @@ void end_program(){
 	}
 
 	erase_symtab();
+	delete_bplist();
 }

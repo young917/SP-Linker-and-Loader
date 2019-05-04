@@ -34,12 +34,10 @@ char *reg[reg_num];
 Assemble_Info ASBL;
 object_program OBJ;
 
-// For Loading
+// For Loading & Execution
 estab_node* ESTAB[ESTAB_SIZE];
 unsigned int PROGADDR;
 unsigned int ENDADDR;
-
-// For Execution
 EXECUTION execution;
 
 

@@ -8,19 +8,20 @@ void set_progaddr(){
 	addr[0] = '\0';
 	PROGADDR =  0;
 	ret = Get_String_Argument(addr);
-	if( Success == FALSE || ret != ENTER ){
+	if( Success == FALSE || ret != ENTER ){// no argument or more than 1 argument
 		Success = FALSE;
-		printf("Please enter proper argument\n");
+		printf("\nPlease enter proper argument\n");
 		return;
 	}
-	ret = Str_convert_into_Hex(addr, &PROGADDR );
+	ret = Str_convert_into_Hex(addr, &PROGADDR );// argument doesn't consist of hexadecimal string
 	if( ret == FALSE ){
-		printf( "Please enter proper argument\n");
+		printf( "\nPlease enter proper argument\n");
 		return;
 	}
-	printf("Program starting address set to 0x");
+
+	printf("\nProgram starting address set to 0x");
 	Hex_convert_into_Str( PROGADDR, 4);
-	printf("\n");
+	printf("\n\n");
 }
 
 void load(){
@@ -309,6 +310,7 @@ void load(){
 	Hex_convert_into_Str( len, 4 );
 	printf("\n");
 	ENDADDR = PROGADDR + len;
+	execution.registers[PC] = PROGADDR;
 
 	//Erase extdef array, ESTAB
 	for( i = 0; i < linking_num ; i++ ){
