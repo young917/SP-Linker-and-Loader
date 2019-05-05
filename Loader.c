@@ -6,11 +6,10 @@ void set_progaddr(){
 	char addr[10];
 
 	addr[0] = '\0';
-	PROGADDR =  0;
 	ret = Get_String_Argument(addr);
 	if( Success == FALSE || ret != ENTER ){// no argument or more than 1 argument
 		Success = FALSE;
-		printf("\nPlease enter proper argument\n");
+		printf("\nPlease enter proper argument.\n");
 		return;
 	}
 	if( strncmp(addr, "0x", 2) == 0 || strncmp(addr, "0X", 2) == 0 )
@@ -41,15 +40,18 @@ void load(){
 	unsigned addr, len, val, num, idx;
 	int ret, i, j;
 
-	// set File pointer
+	// Store arguments
 	for( i = 0; i < 3 ; i++){
 		linking_files[i].filename[0] = '\0';
 	
 		// read arguments
 		ret = Get_String_Argument( filename );
-		if( i == 2 && ret != ENTER ){
+		if( Success == FALSE )
+			break;
+		else if( i == 2 && ret != ENTER ){
 			printf("Too many argument.\n");
 			Success = FALSE;
+			break;
 		}
 		strcpy ( linking_files[i].filename, filename );
 		linking_num++;
@@ -70,9 +72,12 @@ void load(){
 			break;
 		}
 		while( Success ){
-			fscanf( curfp, "%c", &ch );
+			ret = fscanf( curfp, "%c", &ch );
 
-			if( ch == 'H' ){
+			if( ret == EOF )
+				break;
+
+			else if( ch == 'H' ){
 				new_node = (estab_node *)malloc( sizeof( estab_node ));
 				Read_File( curfp, new_node->name, 6 );
 				Read_File( curfp, garage, 6 );
@@ -89,7 +94,7 @@ void load(){
 				while( TRUE ){
 					new_node = ( estab_node *)malloc( sizeof( estab_node ));
 					ret = Read_File( curfp, new_node->name, 6 );
-					if( ret == ENTER ){
+					if( ret != CHAR ){// Revise
 						free( new_node );
 						new_node = NULL;
 						break;
@@ -103,15 +108,10 @@ void load(){
 					Success = push_into_ESTAB( new_node );
 				}	
 			}
-
-			else if( ch == '.' ){
-				Read_File( curfp, garage, 72 );
-				continue;
-			}
-			
-			else{
-				Read_File( curfp, garage, 72 );
-				break;
+			else{// Revise
+				ret = Read_File( curfp, garage, 73 );
+				if( ret == Eof )
+					break;
 			}
 		}
 		fclose( curfp );
@@ -141,8 +141,8 @@ void load(){
 				Reference_Table[1] = CSADDR;
 
 				while( TRUE ) {
-					fscanf(curfp, "%c", &ch);
-					if( ch == '\n' )
+					ret = fscanf(curfp, "%c", &ch);
+					if( ret == EOF || ch == '\n' )
 						break;
 					else if( ch >= '0' || ch <= '9' ){
 						tmp[0] = ch;
@@ -154,7 +154,7 @@ void load(){
 						Reference_Table[num] = addr;
 					}
 					else{
-						ret = Read_File( curfp, garage, 6 ); 
+						ret = Read_File( curfp, garage, 5 ); 
 					}
 
 					if( ret == ENTER || Success == FALSE )
@@ -173,7 +173,7 @@ void load(){
 					Str_convert_into_Hex( tmp, &val );
 					Memory[addr] = val;
 				}
-				ret = Read_File( curfp, tmp, 1 );
+				ret = Read_File( curfp, tmp, 1 );// read enter
 			}
 
 			else if( ch == 'M' ){
@@ -210,6 +210,8 @@ void load(){
 					}
 					else{
 						Success = find_in_ESTAB( &val, tmp );
+						if( Success == FALSE )
+							break;
 					}
 
 					if( ch == '+' ){
@@ -239,11 +241,20 @@ void load(){
 				}
 			}
 
-			else if( ch == 'E' )
+			else if( ch == 'E' ){
+				tmp[0] = '\0';
+				Read_File( curfp, tmp, 7 );
+				if( tmp[0] == '\0' )
+					STARTADDR = PROGADDR;
+				else{
+					Str_convert_into_Hex( tmp, &addr );
+					STARTADDR = addr + PROGADDR;
+				}
 				break;
+			}
 
 			else{
-				Read_File( curfp, garage, 72 );
+				Read_File( curfp, garage, 73 );
 			}
 		}
 		fclose( curfp );
@@ -255,7 +266,9 @@ void load(){
 		return;
 	}	
 
-
+	
+	/* Gather external defined variable for each program.
+	   And sort them by increasing address */
 	for( i = 0; i < linking_num ; i++ )
 		extdef[i] = NULL;
 	for( i = 0; i < ESTAB_SIZE ; i++ ){
@@ -312,7 +325,16 @@ void load(){
 	Hex_convert_into_Str( len, 4 );
 	printf("\n");
 	ENDADDR = PROGADDR + len;
-	execution.registers[PC] = PROGADDR;
+	execution.registers[PC] = STARTADDR;
+	for( i = 0; i < 10; i++ ){
+		if( i == PC )
+			continue;
+		else if( i == L )
+			execution.registers[L] = ENDADDR;
+		else
+			execution.registers[i] = 0;
+	}
+
 
 	//Erase extdef array, ESTAB
 	for( i = 0; i < linking_num ; i++ ){
@@ -323,6 +345,7 @@ void load(){
 			free( ext_before );
 			ext_before = NULL;
 		}
+		extdef[i] = NULL;
 	}
 	for( i = 0 ; i < ESTAB_SIZE ; i++ )
 		ESTAB[i] = NULL;
@@ -380,6 +403,7 @@ int find_in_ESTAB( unsigned int *addr, char str[] ){
 			ret = TRUE;
 			break;
 		}
+		cur = cur->next;// Revise
 	}
 	return ret;	
 }

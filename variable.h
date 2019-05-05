@@ -37,6 +37,7 @@ object_program OBJ;
 // For Loading & Execution
 estab_node* ESTAB[ESTAB_SIZE];
 unsigned int PROGADDR;
+unsigned int STARTADDR;
 unsigned int ENDADDR;
 EXECUTION execution;
 
