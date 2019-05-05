@@ -144,7 +144,7 @@ void load(){
 					ret = fscanf(curfp, "%c", &ch);
 					if( ret == EOF || ch == '\n' )
 						break;
-					else if( ch >= '0' || ch <= '9' ){
+					else if( ch >= '0' && ch <= '9' ){
 						tmp[0] = ch;
 						fscanf(curfp, "%c", tmp+1 );
 						tmp[2] = '\0';

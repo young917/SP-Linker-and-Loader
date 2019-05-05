@@ -280,4 +280,4 @@ void Store(int reg_idx, int len);
 void print_regs();
 void show_bplist();
 void delete_bplist();
-void push_into_bplist(unsigned int addr);
+int push_into_bplist(unsigned int addr);
