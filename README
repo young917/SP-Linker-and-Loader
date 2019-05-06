@@ -1,0 +1,45 @@
+System Programming Project3
+
+-----------------------------------------------------------------
+PURPOSE
+
+Implement additional functions to the shell program:
+	* Read one or multiple object program
+	  Link the files together
+	  Load them onto the memory at specified location
+	* Execute the program loaded on the memory
+-----------------------------------------------------------------
+FILES
+
+20171697.c
+Managing_String.c
+assembler.c
+Loader.c
+Execute.c
+20171697.h
+variable.h
+Makefile
+opcode.txt
+copy.obj
+proga.obj
+progb.obj
+progc.obj
+-----------------------------------------------------------------
+HOW TO RUN
+
+*
+To run this program,
+$ make
+$./20171697.out
+
+*
+To delete .out file
+$ make clean
+-----------------------------------------------------------------
+CREATED
+
+Apr 9 ~ May 6,2019
+-----------------------------------------------------------------
+AUTHOR
+
+20171697 Min Young, Choe
