@@ -15,7 +15,7 @@ void set_progaddr(){
 	if( strncmp(addr, "0x", 2) == 0 || strncmp(addr, "0X", 2) == 0 )
 		strcpy(addr, addr+2 );
 	ret = Str_convert_into_Hex(addr, &PROGADDR );// argument doesn't consist of hexadecimal string
-	if( ret == FALSE ){
+	if( ret == FALSE || PROGADDR > MEM_LIMIT ){
 		printf( "\nPlease enter proper argument\n");
 		return;
 	}
@@ -171,6 +171,10 @@ void load(){
 				for( j = 0; j < len; j++, addr++ ){
 					ret = Read_File( curfp, tmp, 2 );
 					Str_convert_into_Hex( tmp, &val );
+					if( addr > MEM_LIMIT ){
+						Success = FALSE;
+						break;
+					}
 					Memory[addr] = val;
 				}
 				ret = Read_File( curfp, tmp, 1 );// read enter
@@ -180,6 +184,12 @@ void load(){
 				Read_File( curfp, tmp, 6 );
 				Str_convert_into_Hex( tmp, &addr );
 				addr += CSADDR;
+
+				if( addr > MEM_LIMIT ){
+					Success = FALSE;
+					break;
+				}
+
 				Read_File( curfp, tmp, 2 );
 				Str_convert_into_Hex( tmp, &len );
 				
